@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -12,6 +12,8 @@ import {
   Paper,
   IconButton,
   InputAdornment,
+  Autocomplete,
+  Popper,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -32,9 +34,13 @@ const WeatherPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [isSearchingCities, setIsSearchingCities] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
   const API_KEY = 'acc251998da0f72be8156b4334369ed6'; 
   const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+  const GEO_URL = 'https://api.openweathermap.org/geo/1.0';
 
   useEffect(() => {
     const saved = localStorage.getItem('recentSearches');
@@ -57,6 +63,52 @@ const WeatherPage = () => {
     };
     return iconMap[condition] || <CloudIcon sx={{ fontSize: 60, color: '#90A4AE' }} />;
   };
+
+  // Search for cities using Geocoding API
+  const searchCities = useCallback(async (searchTerm) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setCityOptions([]);
+      return;
+    }
+
+    setIsSearchingCities(true);
+    try {
+      const response = await axios.get(
+        `${GEO_URL}/direct?q=${searchTerm}&limit=10&appid=${API_KEY}`
+      );
+      
+      const cities = response.data.map((city) => ({
+        name: city.name,
+        country: city.country,
+        state: city.state,
+        lat: city.lat,
+        lon: city.lon,
+        displayName: city.state 
+          ? `${city.name}, ${city.state}, ${city.country}`
+          : `${city.name}, ${city.country}`
+      }));
+      
+      setCityOptions(cities);
+    } catch (err) {
+      console.error('Error searching cities:', err);
+      setCityOptions([]);
+    } finally {
+      setIsSearchingCities(false);
+    }
+  }, [API_KEY]);
+
+  // Debounce the city search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (inputValue && inputValue.length >= 2) {
+        searchCities(inputValue);
+      } else {
+        setCityOptions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [inputValue, searchCities]);
 
   const fetchWeather = async (cityName) => {
     if (!cityName.trim()) {
@@ -82,6 +134,8 @@ const WeatherPage = () => {
       localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
       
       setCity('');
+      setInputValue('');
+      setCityOptions([]);
     } catch (err) {
       if (err.response && err.response.status === 404) {
         setError('City not found. Please check the city name and try again.');
@@ -96,7 +150,9 @@ const WeatherPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    fetchWeather(city);
+    if (city) {
+      fetchWeather(city);
+    }
   };
 
   const handleRecentSearch = (cityName) => {
@@ -117,6 +173,29 @@ const WeatherPage = () => {
     });
   };
 
+  // Custom Popper for Autocomplete dropdown
+  const CustomPopper = (props) => {
+    return (
+      <Popper
+        {...props}
+        placement="bottom-start"
+        style={{
+          width: '100%',
+          maxWidth: '800px',
+          zIndex: 1300,
+        }}
+        modifiers={[
+          {
+            name: 'offset',
+            options: {
+              offset: [0, 8],
+            },
+          },
+        ]}
+      />
+    );
+  };
+
   return (
     <Box className={styles.container}>
       <Box className={styles.contentWrapper}>
@@ -132,23 +211,79 @@ const WeatherPage = () => {
 
         <Box className={styles.searchWrapper}>
           <form onSubmit={handleSubmit} className={styles.searchForm}>
-            <TextField
+            <Autocomplete
               fullWidth
-              variant="outlined"
-              placeholder="Enter city name (e.g., London, Tokyo, New York)"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className={styles.searchInput}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton type="submit" disabled={loading}>
-                      <SearchIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
+              freeSolo
+              options={cityOptions}
+              inputValue={inputValue}
+              onInputChange={(event, newInputValue) => {
+                setInputValue(newInputValue);
+                setCity(newInputValue);
               }}
+              onChange={(event, newValue) => {
+                if (newValue && typeof newValue === 'object') {
+                  const cityName = newValue.state 
+                    ? `${newValue.name}, ${newValue.state}, ${newValue.country}`
+                    : `${newValue.name}, ${newValue.country}`;
+                  setCity(cityName);
+                  setInputValue(cityName);
+                  fetchWeather(cityName);
+                } else if (newValue && typeof newValue === 'string') {
+                  setCity(newValue);
+                  setInputValue(newValue);
+                }
+              }}
+              getOptionLabel={(option) => {
+                if (typeof option === 'string') return option;
+                return option.displayName || '';
+              }}
+              isOptionEqualToValue={(option, value) => {
+                if (typeof value === 'string') return option.displayName === value;
+                return option.displayName === value?.displayName;
+              }}
+              loading={isSearchingCities}
+              loadingText="Searching cities..."
+              noOptionsText={inputValue.length >= 2 ? "No cities found" : "Type at least 2 characters"}
               disabled={loading}
+              className={styles.autocomplete}
+              PopperComponent={CustomPopper}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="outlined"
+                  placeholder="Enter city name (e.g., London, Tokyo, New York)"
+                  disabled={loading}
+                  className={styles.searchInput}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton type="submit" disabled={loading}>
+                          <SearchIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} className={styles.autocompleteOption}>
+                  <LocationIcon sx={{ mr: 1, color: '#1976d2', fontSize: 20 }} />
+                  <Box>
+                    <Typography variant="body1" className={styles.optionName}>
+                      {option.name}
+                      {option.state && (
+                        <Typography component="span" variant="body2" color="textSecondary" sx={{ ml: 1 }}>
+                          {option.state}
+                        </Typography>
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {option.country}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
             />
             <Button
               type="submit"

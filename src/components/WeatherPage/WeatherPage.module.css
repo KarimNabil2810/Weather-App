@@ -398,3 +398,85 @@
     margin: 0 5px;
   }
 }
+
+/* Autocomplete styles */
+.autocomplete {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+}
+
+.autocomplete .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.autocomplete .MuiOutlinedInput-root:hover fieldset {
+  border-color: #1976d2;
+}
+
+.autocomplete .MuiAutocomplete-popupIndicator {
+  display: none;
+}
+
+.autocomplete .MuiAutocomplete-clearIndicator {
+  display: none;
+}
+
+/* Autocomplete dropdown option */
+.autocompleteOption {
+  display: flex !important;
+  align-items: center !important;
+  padding: 10px 16px !important;
+  gap: 8px;
+  cursor: pointer !important;
+}
+
+.autocompleteOption:hover {
+  background: rgba(25, 118, 210, 0.08) !important;
+}
+
+.optionName {
+  font-weight: 500 !important;
+}
+
+/* Autocomplete dropdown paper */
+.MuiAutocomplete-paper {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  max-height: 300px !important;
+}
+
+/* Autocomplete loading text */
+.MuiAutocomplete-loading {
+  padding: 12px !important;
+  text-align: center !important;
+  color: #666 !important;
+}
+
+/* Autocomplete no options text */
+.MuiAutocomplete-noOptions {
+  padding: 12px !important;
+  text-align: center !important;
+  color: #666 !important;
+}
+
+/* Responsive adjustments for autocomplete */
+@media (max-width: 768px) {
+  .autocomplete {
+    width: 100%;
+  }
+  
+  .autocomplete .MuiAutocomplete-paper {
+    max-width: calc(100vw - 40px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .autocompleteOption {
+    padding: 8px 12px !important;
+  }
+  
+  .optionName {
+    font-size: 0.9rem !important;
+  }
+}
