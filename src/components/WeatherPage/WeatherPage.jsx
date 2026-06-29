@@ -31,6 +31,9 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -46,11 +49,16 @@ import {
   Refresh as RefreshIcon,
   Share as ShareIcon,
   ContentCopy as CopyIcon,
-  Warning as WarningIcon,
   Air as AirIcon,
   Compress as CompressIcon,
   Timeline as TimelineIcon,
   Info as InfoIcon,
+  CompareArrows as CompareIcon,
+  Print as PrintIcon,
+  Download as DownloadIcon,
+  Mic as MicIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import styles from './WeatherPage.module.css';
 import axios from 'axios';
@@ -82,6 +90,45 @@ const WeatherPage = () => {
   const [airQuality, setAirQuality] = useState(null);
   const [showHourly, setShowHourly] = useState(false);
   const [weatherStats, setWeatherStats] = useState(null);
+  
+  // New features
+  const [selectedTheme, setSelectedTheme] = useState('light');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [compareCity, setCompareCity] = useState('');
+  const [compareData, setCompareData] = useState(null);
+  const [showCompare, setShowCompare] = useState(false);
+  const [weatherHistory, setWeatherHistory] = useState([]);
+  const [isVoiceSearch, setIsVoiceSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const themes = {
+    light: {
+      name: 'Light',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      primary: '#667eea',
+      secondary: '#764ba2',
+      cardBg: 'rgba(255, 255, 255, 0.85)',
+      text: '#1a1a2e',
+      textSecondary: 'rgba(0, 0, 0, 0.6)',
+      border: 'rgba(0, 0, 0, 0.08)',
+      glass: 'rgba(255, 255, 255, 0.7)',
+      shadow: '0 20px 60px rgba(0, 0, 0, 0.08)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+    },
+    dark: {
+      name: 'Dark',
+      background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
+      primary: '#667eea',
+      secondary: '#764ba2',
+      cardBg: 'rgba(255, 255, 255, 0.08)',
+      text: '#ffffff',
+      textSecondary: 'rgba(255, 255, 255, 0.6)',
+      border: 'rgba(255, 255, 255, 0.1)',
+      glass: 'rgba(255, 255, 255, 0.06)',
+      shadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+      inputBg: 'rgba(255, 255, 255, 0.08)',
+    }
+  };
 
   const API_KEY = 'acc251998da0f72be8156b4334369ed6'; 
   const BASE_URL = 'https://api.openweathermap.org/data/2.5';
@@ -97,6 +144,12 @@ const WeatherPage = () => {
     if (savedFavorites) {
       setFavorites(JSON.parse(savedFavorites));
     }
+    const savedHistory = localStorage.getItem('weatherHistory');
+    if (savedHistory) {
+      setWeatherHistory(JSON.parse(savedHistory));
+    }
+    // Apply theme
+    handleThemeChange('light');
   }, []);
 
   const getWeatherIcon = (condition, size = 60) => {
@@ -124,6 +177,28 @@ const WeatherPage = () => {
 
   const getTempUnit = () => {
     return temperatureUnit === 'celsius' ? '°C' : '°F';
+  };
+
+  // Theme handler
+  const handleThemeChange = (themeName) => {
+    setSelectedTheme(themeName);
+    const theme = themes[themeName];
+    if (theme) {
+      document.documentElement.style.setProperty('--bg-gradient', theme.background);
+      document.documentElement.style.setProperty('--text-color', theme.text);
+      document.documentElement.style.setProperty('--text-secondary', theme.textSecondary);
+      document.documentElement.style.setProperty('--card-bg', theme.cardBg);
+      document.documentElement.style.setProperty('--border-color', theme.border);
+      document.documentElement.style.setProperty('--glass-bg', theme.glass);
+      document.documentElement.style.setProperty('--shadow', theme.shadow);
+      document.documentElement.style.setProperty('--input-bg', theme.inputBg);
+    }
+  };
+
+  const toggleTheme = () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setIsDarkMode(!isDarkMode);
+    handleThemeChange(newTheme);
   };
 
   // Search for cities using Geocoding API
@@ -172,14 +247,131 @@ const WeatherPage = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [inputValue, searchCities]);
 
+  // Voice Search
+  const startVoiceSearch = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsVoiceSearch(true);
+        setSnackbarMessage('Listening... Speak the city name');
+        setSnackbarOpen(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchQuery(transcript);
+        setInputValue(transcript);
+        setCity(transcript);
+        setIsVoiceSearch(false);
+        setSnackbarMessage(`Searching for: ${transcript}`);
+        setSnackbarOpen(true);
+        fetchWeather(transcript);
+      };
+
+      recognition.onerror = () => {
+        setIsVoiceSearch(false);
+        setSnackbarMessage('Voice recognition failed. Please try again.');
+        setSnackbarOpen(true);
+      };
+
+      recognition.onend = () => {
+        setIsVoiceSearch(false);
+      };
+
+      recognition.start();
+    } else {
+      setSnackbarMessage('Voice search is not supported in your browser');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Compare Weather
+  const handleCompare = async (cityName) => {
+    if (!cityName || !cityName.trim()) {
+      setSnackbarMessage('Please enter a city name to compare');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `${BASE_URL}/weather?q=${cityName}&appid=${API_KEY}&units=metric`
+      );
+      setCompareData(response.data);
+      setShowCompare(true);
+      setSnackbarMessage(`Comparison loaded for ${cityName}`);
+      setSnackbarOpen(true);
+    } catch (err) {
+      setSnackbarMessage('City not found for comparison. Please check the name.');
+      setSnackbarOpen(true);
+      setCompareData(null);
+    }
+  };
+
+  // Download Weather Data
+  const downloadWeatherData = () => {
+    if (!weatherData) return;
+    
+    const data = {
+      city: weatherData.name,
+      country: weatherData.sys.country,
+      date: new Date().toISOString(),
+      temperature: convertTemp(weatherData.main.temp),
+      feels_like: convertTemp(weatherData.main.feels_like),
+      humidity: weatherData.main.humidity,
+      pressure: weatherData.main.pressure,
+      wind_speed: weatherData.wind.speed,
+      weather: weatherData.weather[0].description,
+      forecast: forecastData?.list?.map(day => ({
+        date: new Date(day.dt * 1000).toDateString(),
+        temp: convertTemp(day.main.temp),
+        weather: day.weather[0].description,
+      })) || [],
+    };
+    
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `weather_${weatherData.name}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setSnackbarMessage('Weather data downloaded!');
+    setSnackbarOpen(true);
+  };
+
+  // Print Weather
+  const printWeather = () => {
+    window.print();
+  };
+
+  // Save to history
+  const saveToHistory = (data) => {
+    if (!data) return;
+    const historyEntry = {
+      city: data.name,
+      country: data.sys.country,
+      temp: data.main.temp,
+      weather: data.weather[0].description,
+      date: new Date().toISOString(),
+    };
+    
+    const newHistory = [historyEntry, ...weatherHistory].slice(0, 20);
+    setWeatherHistory(newHistory);
+    localStorage.setItem('weatherHistory', JSON.stringify(newHistory));
+  };
+
   // Fetch weather alerts
   const fetchWeatherAlerts = async (lat, lon) => {
     try {
-      // Using the weather API to get alerts (if available)
       const response = await axios.get(
         `${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`
       );
-      // Check if alerts exist in the response
       if (response.data.alerts) {
         setWeatherAlerts(response.data.alerts);
       } else {
@@ -220,7 +412,7 @@ const WeatherPage = () => {
     }
   };
 
-  // Fetch weather stats (min/max, etc.)
+  // Fetch weather stats
   const fetchWeatherStats = async (cityName) => {
     try {
       const response = await axios.get(
@@ -252,33 +444,28 @@ const WeatherPage = () => {
     setError(null);
     
     try {
-      // Fetch current weather
       const weatherResponse = await axios.get(
         `${BASE_URL}/weather?q=${cityName}&appid=${API_KEY}&units=metric`
       );
       setWeatherData(weatherResponse.data);
       
-      // Get coordinates for additional data
+      // Save to history
+      saveToHistory(weatherResponse.data);
+      
       const { lat, lon } = weatherResponse.data.coord;
       
-      // Fetch alerts
       if (showAlerts) {
         await fetchWeatherAlerts(lat, lon);
       }
       
-      // Fetch air quality
       await fetchAirQuality(lat, lon);
-      
-      // Fetch weather stats
       await fetchWeatherStats(cityName);
       
-      // Check if city is in favorites
       const isFav = favorites.some(fav => 
         fav.toLowerCase() === weatherResponse.data.name.toLowerCase()
       );
       setIsFavorite(isFav);
 
-      // Fetch 5-day forecast
       try {
         const forecastResponse = await axios.get(
           `${BASE_URL}/forecast?q=${cityName}&appid=${API_KEY}&units=metric&cnt=5`
@@ -289,7 +476,6 @@ const WeatherPage = () => {
         setForecastData(null);
       }
       
-      // Fetch hourly forecast (next 24 hours)
       try {
         const hourlyResponse = await axios.get(
           `${BASE_URL}/forecast?q=${cityName}&appid=${API_KEY}&units=metric&cnt=8`
@@ -300,7 +486,6 @@ const WeatherPage = () => {
         setHourlyForecast(null);
       }
       
-      // Update recent searches
       const updatedSearches = [
         cityName,
         ...recentSearches.filter((item) => item !== cityName),
@@ -339,14 +524,12 @@ const WeatherPage = () => {
     localStorage.removeItem('recentSearches');
   };
 
-  // Toggle temperature unit
   const handleUnitChange = (event, newUnit) => {
     if (newUnit !== null) {
       setTemperatureUnit(newUnit);
     }
   };
 
-  // Toggle favorite
   const toggleFavorite = () => {
     const cityName = weatherData?.name;
     if (!cityName) return;
@@ -371,7 +554,6 @@ const WeatherPage = () => {
     }
   };
 
-  // Share weather
   const handleShare = () => {
     setShareDialogOpen(true);
   };
@@ -418,7 +600,6 @@ ${weatherData.weather[0].description}`;
     return colors[aqi - 1] || '#808080';
   };
 
-  // Custom Popper for Autocomplete dropdown
   const CustomPopper = (props) => {
     return (
       <Popper
@@ -442,7 +623,7 @@ ${weatherData.weather[0].description}`;
   };
 
   return (
-    <Box className={styles.container}>
+    <Box className={`${styles.container} ${isDarkMode ? styles.darkMode : styles.lightMode}`}>
       <Box className={styles.contentWrapper}>
         <Paper elevation={3} className={styles.header}>
           <Box className={styles.headerContent}>
@@ -451,11 +632,16 @@ ${weatherData.weather[0].description}`;
                 <LocationIcon sx={{ fontSize: 40, mr: 2 }} />
                 Weather Forecast
               </Typography>
-              <Typography variant="subtitle1" color="textSecondary" gutterBottom>
+              <Typography variant="subtitle1" className={styles.subtitle}>
                 Search weather for any city in the world
               </Typography>
             </Box>
             <Box className={styles.headerRight}>
+              <Tooltip title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+                <IconButton onClick={toggleTheme} className={styles.themeToggle}>
+                  {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
               <ToggleButtonGroup
                 value={temperatureUnit}
                 exclusive
@@ -529,17 +715,17 @@ ${weatherData.weather[0].description}`;
               )}
               renderOption={(props, option) => (
                 <Box component="li" {...props} className={styles.autocompleteOption}>
-                  <LocationIcon sx={{ mr: 1, color: '#1976d2', fontSize: 20 }} />
+                  <LocationIcon sx={{ mr: 1, color: '#667eea', fontSize: 20 }} />
                   <Box>
                     <Typography variant="body1" className={styles.optionName}>
                       {option.name}
                       {option.state && (
-                        <Typography component="span" variant="body2" color="textSecondary" sx={{ ml: 1 }}>
+                        <Typography component="span" variant="body2" className={styles.optionState}>
                           {option.state}
                         </Typography>
                       )}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" className={styles.optionCountry}>
                       {option.country}
                     </Typography>
                   </Box>
@@ -558,11 +744,28 @@ ${weatherData.weather[0].description}`;
           </form>
         </Box>
 
+        {/* Voice Search */}
+        <Box className={styles.centerContent}>
+          <Box className={styles.voiceSearchContainer}>
+            <IconButton 
+              onClick={startVoiceSearch} 
+              className={styles.voiceButton}
+              disabled={isVoiceSearch}
+            >
+              <MicIcon />
+              {isVoiceSearch && <CircularProgress size={20} className={styles.voiceProgress} />}
+            </IconButton>
+            <Typography variant="caption" className={styles.voiceText}>
+              {isVoiceSearch ? 'Listening...' : 'Voice Search'}
+            </Typography>
+          </Box>
+        </Box>
+
         {/* Favorites Quick Access */}
         {favorites.length > 0 && (
           <Box className={styles.centerContent}>
             <Box className={styles.favoritesSection}>
-              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+              <Typography variant="subtitle2" className={styles.favoritesLabel}>
                 ⭐ Favorites:
               </Typography>
               <Box className={styles.favoritesTags}>
@@ -592,7 +795,7 @@ ${weatherData.weather[0].description}`;
           <Box className={styles.centerContent}>
             <Box className={styles.recentSearches}>
               <Box className={styles.recentSearchesHeader}>
-                <Typography variant="subtitle2" color="textSecondary">
+                <Typography variant="subtitle2" className={styles.recentLabel}>
                   Recent Searches:
                 </Typography>
                 <Button
@@ -641,25 +844,87 @@ ${weatherData.weather[0].description}`;
                     <ShareIcon />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Toggle Alerts">
-                  <IconButton 
-                    onClick={() => setShowAlerts(!showAlerts)} 
-                    className={styles.actionButton}
-                    color={showAlerts ? 'primary' : 'default'}
-                  >
-                    {showAlerts ? <WarningIcon /> : <WarningIcon color="disabled" />}
-                  </IconButton>
-                </Tooltip>
               </Box>
             </Box>
+
+            {/* Compare Section */}
+            <Box className={styles.centerContent}>
+              <Box className={styles.compareSection}>
+                <TextField
+                  size="small"
+                  placeholder="Enter city to compare"
+                  value={compareCity}
+                  onChange={(e) => setCompareCity(e.target.value)}
+                  className={styles.compareInput}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && compareCity) {
+                      handleCompare(compareCity);
+                    }
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleCompare(compareCity)}
+                  className={styles.compareButton}
+                  startIcon={<CompareIcon />}
+                >
+                  Compare
+                </Button>
+                {compareData && (
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => setShowCompare(!showCompare)}
+                    className={styles.toggleCompareButton}
+                  >
+                    {showCompare ? 'Hide' : 'Show'} Comparison
+                  </Button>
+                )}
+              </Box>
+            </Box>
+
+            {/* Comparison Results */}
+            {showCompare && compareData && weatherData && (
+              <Box className={styles.centerContent}>
+                <Paper className={styles.compareResults}>
+                  <Typography variant="h6" className={styles.compareTitle}>
+                    Weather Comparison
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Paper className={styles.compareCard}>
+                        <Typography variant="subtitle2" className={styles.compareCityName}>{weatherData.name}</Typography>
+                        <Typography variant="h4" className={styles.compareTemp}>{convertTemp(weatherData.main.temp)}°</Typography>
+                        <Typography variant="caption" className={styles.compareDesc}>{weatherData.weather[0].description}</Typography>
+                        <Typography variant="caption" className={styles.compareDesc}>Humidity: {weatherData.main.humidity}%</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Paper className={styles.compareCard}>
+                        <Typography variant="subtitle2" className={styles.compareCityName}>{compareData.name}</Typography>
+                        <Typography variant="h4" className={styles.compareTemp}>{convertTemp(compareData.main.temp)}°</Typography>
+                        <Typography variant="caption" className={styles.compareDesc}>{compareData.weather[0].description}</Typography>
+                        <Typography variant="caption" className={styles.compareDesc}>Humidity: {compareData.main.humidity}%</Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                  <Box className={styles.compareDiff}>
+                    <Typography variant="body2" className={styles.compareDiffText}>
+                      Temperature Difference: {Math.abs(Math.round(weatherData.main.temp - compareData.main.temp))}°C
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
 
             {/* Weather Alerts */}
             {showAlerts && weatherAlerts.length > 0 && (
               <Box className={styles.centerContent}>
                 <Alert severity="warning" className={styles.alert}>
-                  <Typography variant="subtitle2">⚠️ Weather Alert</Typography>
+                  <Typography variant="subtitle2" className={styles.alertTitle}>⚠️ Weather Alert</Typography>
                   {weatherAlerts.map((alert, index) => (
-                    <Typography key={index} variant="body2">
+                    <Typography key={index} variant="body2" className={styles.alertText}>
                       {alert.event}: {alert.description}
                     </Typography>
                   ))}
@@ -675,26 +940,26 @@ ${weatherData.weather[0].description}`;
                     <CardContent>
                       <Box className={styles.weatherHeader}>
                         <Box>
-                          <Typography variant="h4" component="h2">
+                          <Typography variant="h4" component="h2" className={styles.cityName}>
                             {weatherData.name}, {weatherData.sys.country}
                           </Typography>
-                          <Typography variant="subtitle1" color="textSecondary">
+                          <Typography variant="subtitle1" className={styles.weatherDate}>
                             {formatDate(weatherData.dt)}
                           </Typography>
                         </Box>
                         <Box className={styles.weatherActions}>
                           <Tooltip title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
-                            <IconButton onClick={toggleFavorite} size="small">
+                            <IconButton onClick={toggleFavorite} size="small" className={styles.weatherActionIcon}>
                               {isFavorite ? <FavoriteIcon color="error" fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Refresh">
-                            <IconButton onClick={handleRefresh} size="small">
+                            <IconButton onClick={handleRefresh} size="small" className={styles.weatherActionIcon}>
                               <RefreshIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Share">
-                            <IconButton onClick={handleShare} size="small">
+                            <IconButton onClick={handleShare} size="small" className={styles.weatherActionIcon}>
                               <ShareIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -707,7 +972,7 @@ ${weatherData.weather[0].description}`;
                           <Typography variant="h1" className={styles.temperature}>
                             {convertTemp(weatherData.main.temp)}{getTempUnit()}
                           </Typography>
-                          <Typography variant="h6" color="textSecondary" className={styles.weatherDescription}>
+                          <Typography variant="h6" className={styles.weatherDescription}>
                             {weatherData.weather[0].description}
                           </Typography>
                         </Box>
@@ -715,40 +980,40 @@ ${weatherData.weather[0].description}`;
                         <Grid container spacing={2} className={styles.weatherDetails}>
                           <Grid item xs={6} sm={3}>
                             <Paper className={styles.detailItem}>
-                              <Typography variant="caption" color="textSecondary">
+                              <Typography variant="caption" className={styles.detailLabel}>
                                 Feels Like
                               </Typography>
-                              <Typography variant="h6">
+                              <Typography variant="h6" className={styles.detailValue}>
                                 {convertTemp(weatherData.main.feels_like)}{getTempUnit()}
                               </Typography>
                             </Paper>
                           </Grid>
                           <Grid item xs={6} sm={3}>
                             <Paper className={styles.detailItem}>
-                              <Typography variant="caption" color="textSecondary">
+                              <Typography variant="caption" className={styles.detailLabel}>
                                 Humidity
                               </Typography>
-                              <Typography variant="h6">
+                              <Typography variant="h6" className={styles.detailValue}>
                                 {weatherData.main.humidity}%
                               </Typography>
                             </Paper>
                           </Grid>
                           <Grid item xs={6} sm={3}>
                             <Paper className={styles.detailItem}>
-                              <Typography variant="caption" color="textSecondary">
+                              <Typography variant="caption" className={styles.detailLabel}>
                                 Wind Speed
                               </Typography>
-                              <Typography variant="h6">
+                              <Typography variant="h6" className={styles.detailValue}>
                                 {weatherData.wind.speed} m/s
                               </Typography>
                             </Paper>
                           </Grid>
                           <Grid item xs={6} sm={3}>
                             <Paper className={styles.detailItem}>
-                              <Typography variant="caption" color="textSecondary">
+                              <Typography variant="caption" className={styles.detailLabel}>
                                 Pressure
                               </Typography>
-                              <Typography variant="h6">
+                              <Typography variant="h6" className={styles.detailValue}>
                                 {weatherData.main.pressure} hPa
                               </Typography>
                             </Paper>
@@ -756,7 +1021,6 @@ ${weatherData.weather[0].description}`;
                         </Grid>
                       </Box>
 
-                      {/* Show More/Less Details */}
                       <Box className={styles.showMoreContainer}>
                         <Button
                           onClick={() => setShowDetails(!showDetails)}
@@ -771,10 +1035,9 @@ ${weatherData.weather[0].description}`;
                         <Box className={styles.extendedDetails}>
                           <Divider className={styles.extendedDivider} />
                           
-                          {/* Air Quality */}
                           {airQuality && (
                             <Box className={styles.airQualitySection}>
-                              <Typography variant="subtitle2" gutterBottom>
+                              <Typography variant="subtitle2" className={styles.sectionTitle}>
                                 <AirIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Air Quality Index
                               </Typography>
@@ -786,22 +1049,22 @@ ${weatherData.weather[0].description}`;
                                     width: `${(airQuality.aqi / 5) * 100}%`
                                   }}
                                 />
-                                <Typography variant="body2">
+                                <Typography variant="body2" className={styles.aqiText}>
                                   {airQuality.level} (AQI: {airQuality.aqi})
                                 </Typography>
                               </Box>
                               <Grid container spacing={1} className={styles.aqiComponents}>
                                 <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">PM2.5</Typography>
-                                  <Typography variant="body2">{airQuality.components.pm25} µg/m³</Typography>
+                                  <Typography variant="caption" className={styles.aqiLabel}>PM2.5</Typography>
+                                  <Typography variant="body2" className={styles.aqiValue}>{airQuality.components.pm25} µg/m³</Typography>
                                 </Grid>
                                 <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">PM10</Typography>
-                                  <Typography variant="body2">{airQuality.components.pm10} µg/m³</Typography>
+                                  <Typography variant="caption" className={styles.aqiLabel}>PM10</Typography>
+                                  <Typography variant="body2" className={styles.aqiValue}>{airQuality.components.pm10} µg/m³</Typography>
                                 </Grid>
                                 <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">NO₂</Typography>
-                                  <Typography variant="body2">{airQuality.components.no2} µg/m³</Typography>
+                                  <Typography variant="caption" className={styles.aqiLabel}>NO₂</Typography>
+                                  <Typography variant="body2" className={styles.aqiValue}>{airQuality.components.no2} µg/m³</Typography>
                                 </Grid>
                               </Grid>
                             </Box>
@@ -809,29 +1072,28 @@ ${weatherData.weather[0].description}`;
 
                           <Divider className={styles.extendedDivider} />
 
-                          {/* Weather Stats */}
                           {weatherStats && (
                             <Box className={styles.statsSection}>
-                              <Typography variant="subtitle2" gutterBottom>
+                              <Typography variant="subtitle2" className={styles.sectionTitle}>
                                 <TimelineIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Weather Statistics
                               </Typography>
                               <Grid container spacing={1}>
                                 <Grid item xs={6}>
-                                  <Typography variant="caption" color="textSecondary">Min Temperature</Typography>
-                                  <Typography variant="body2">{convertTemp(weatherStats.tempMin)}{getTempUnit()}</Typography>
+                                  <Typography variant="caption" className={styles.statsLabel}>Min Temperature</Typography>
+                                  <Typography variant="body2" className={styles.statsValue}>{convertTemp(weatherStats.tempMin)}{getTempUnit()}</Typography>
                                 </Grid>
                                 <Grid item xs={6}>
-                                  <Typography variant="caption" color="textSecondary">Max Temperature</Typography>
-                                  <Typography variant="body2">{convertTemp(weatherStats.tempMax)}{getTempUnit()}</Typography>
+                                  <Typography variant="caption" className={styles.statsLabel}>Max Temperature</Typography>
+                                  <Typography variant="body2" className={styles.statsValue}>{convertTemp(weatherStats.tempMax)}{getTempUnit()}</Typography>
                                 </Grid>
                                 <Grid item xs={6}>
-                                  <Typography variant="caption" color="textSecondary">Wind Direction</Typography>
-                                  <Typography variant="body2">{weatherStats.windDeg}°</Typography>
+                                  <Typography variant="caption" className={styles.statsLabel}>Wind Direction</Typography>
+                                  <Typography variant="body2" className={styles.statsValue}>{weatherStats.windDeg}°</Typography>
                                 </Grid>
                                 <Grid item xs={6}>
-                                  <Typography variant="caption" color="textSecondary">Cloud Cover</Typography>
-                                  <Typography variant="body2">{weatherStats.clouds}%</Typography>
+                                  <Typography variant="caption" className={styles.statsLabel}>Cloud Cover</Typography>
+                                  <Typography variant="body2" className={styles.statsValue}>{weatherStats.clouds}%</Typography>
                                 </Grid>
                               </Grid>
                             </Box>
@@ -845,11 +1107,11 @@ ${weatherData.weather[0].description}`;
                 <Grid item xs={12} md={4}>
                   <Card className={styles.sideCard}>
                     <CardContent>
-                      <Typography variant="h6" gutterBottom className={styles.sideCardTitle}>
+                      <Typography variant="h6" className={styles.sideCardTitle}>
                         Additional Information
                       </Typography>
                       <Box className={styles.sideInfo}>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" className={styles.sideInfoLabel}>
                           Sunrise
                         </Typography>
                         <Typography variant="body1" className={styles.sideInfoValue}>
@@ -857,7 +1119,7 @@ ${weatherData.weather[0].description}`;
                         </Typography>
                       </Box>
                       <Box className={styles.sideInfo}>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" className={styles.sideInfoLabel}>
                           Sunset
                         </Typography>
                         <Typography variant="body1" className={styles.sideInfoValue}>
@@ -865,7 +1127,7 @@ ${weatherData.weather[0].description}`;
                         </Typography>
                       </Box>
                       <Box className={styles.sideInfo}>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" className={styles.sideInfoLabel}>
                           Visibility
                         </Typography>
                         <Typography variant="body1" className={styles.sideInfoValue}>
@@ -873,7 +1135,7 @@ ${weatherData.weather[0].description}`;
                         </Typography>
                       </Box>
                       <Box className={styles.sideInfo}>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" className={styles.sideInfoLabel}>
                           Cloud Cover
                         </Typography>
                         <Typography variant="body1" className={styles.sideInfoValue}>
@@ -905,13 +1167,13 @@ ${weatherData.weather[0].description}`;
             {showHourly && hourlyForecast && hourlyForecast.list && (
               <Box className={styles.centerContent}>
                 <Box className={styles.hourlySection}>
-                  <Typography variant="h6" gutterBottom className={styles.forecastTitle}>
+                  <Typography variant="h6" className={styles.forecastTitle}>
                     ⏰ 24-Hour Forecast
                   </Typography>
                   <Box className={styles.hourlyGrid}>
                     {hourlyForecast.list.map((hour, index) => (
                       <Paper key={index} className={styles.hourlyCard}>
-                        <Typography variant="caption" color="textSecondary">
+                        <Typography variant="caption" className={styles.hourlyTime}>
                           {formatHour(hour.dt)}
                         </Typography>
                         <Box className={styles.hourlyIcon}>
@@ -920,7 +1182,7 @@ ${weatherData.weather[0].description}`;
                         <Typography variant="body2" className={styles.hourlyTemp}>
                           {convertTemp(hour.main.temp)}{getTempUnit()}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary" className={styles.hourlyDesc}>
+                        <Typography variant="caption" className={styles.hourlyDesc}>
                           {hour.weather[0].description}
                         </Typography>
                       </Paper>
@@ -934,17 +1196,17 @@ ${weatherData.weather[0].description}`;
             {forecastData && forecastData.list && (
               <Box className={styles.centerContent}>
                 <Box className={styles.forecastSection}>
-                  <Typography variant="h6" gutterBottom className={styles.forecastTitle}>
+                  <Typography variant="h6" className={styles.forecastTitle}>
                     📅 5-Day Forecast
                   </Typography>
                   <Grid container spacing={2} className={styles.forecastGrid}>
                     {forecastData.list.map((day, index) => (
                       <Grid item xs={12} sm={6} md={2.4} key={index}>
                         <Paper className={styles.forecastCard}>
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" className={styles.forecastDay}>
                             {new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' })}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" className={styles.forecastDate}>
                             {new Date(day.dt * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Typography>
                           <Box className={styles.forecastIcon}>
@@ -953,7 +1215,7 @@ ${weatherData.weather[0].description}`;
                           <Typography variant="h6" className={styles.forecastTemp}>
                             {convertTemp(day.main.temp)}{getTempUnit()}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary" className={styles.forecastDesc}>
+                          <Typography variant="caption" className={styles.forecastDesc}>
                             {day.weather[0].description}
                           </Typography>
                         </Paper>
@@ -969,14 +1231,14 @@ ${weatherData.weather[0].description}`;
         {!weatherData && !loading && !error && (
           <Box className={styles.centerContent}>
             <Paper className={styles.welcomeCard}>
-              <Typography variant="h5" gutterBottom>
+              <Typography variant="h5" className={styles.welcomeTitle}>
                 🌍 Welcome to Weather Forecast
               </Typography>
-              <Typography variant="body1" color="textSecondary">
+              <Typography variant="body1" className={styles.welcomeText}>
                 Search for any city in the world to get current weather information
               </Typography>
               <Box className={styles.exampleCities}>
-                <Typography variant="caption" color="textSecondary">
+                <Typography variant="caption" className={styles.exampleLabel}>
                   Try searching for:
                 </Typography>
                 <Box className={styles.exampleTags}>
@@ -997,6 +1259,25 @@ ${weatherData.weather[0].description}`;
           </Box>
         )}
       </Box>
+
+      {/* Speed Dial */}
+      <SpeedDial
+        ariaLabel="Weather actions"
+        className={styles.speedDial}
+        icon={<SpeedDialIcon />}
+        direction="up"
+      >
+        <SpeedDialAction
+          icon={<DownloadIcon />}
+          tooltipTitle="Download Weather Data"
+          onClick={downloadWeatherData}
+        />
+        <SpeedDialAction
+          icon={<PrintIcon />}
+          tooltipTitle="Print Weather"
+          onClick={printWeather}
+        />
+      </SpeedDial>
 
       {/* Share Dialog */}
       <Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)}>
