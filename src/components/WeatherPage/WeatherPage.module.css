@@ -480,3 +480,407 @@
     font-size: 0.9rem !important;
   }
 }
+
+/* Header with actions */
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.headerLeft {
+  flex: 1;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unitToggle {
+  background: white !important;
+  border-radius: 8px !important;
+}
+
+.unitToggle .MuiToggleButton-root {
+  padding: 6px 12px !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+
+.unitToggle .MuiToggleButton-root.Mui-selected {
+  background: #1976d2 !important;
+  color: white !important;
+}
+
+/* Favorites Section */
+.favoritesSection {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.favoritesTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.favoriteTag {
+  background: white !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.favoriteTag:hover {
+  background: #1976d2 !important;
+  color: white !important;
+}
+
+.favoriteTag .MuiChip-icon {
+  color: #dc004e !important;
+}
+
+.favoriteTag:hover .MuiChip-icon {
+  color: white !important;
+}
+
+/* Action Buttons */
+.actionButtons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.actionButton {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 50% !important;
+  transition: all 0.3s !important;
+}
+
+.actionButton:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  transform: scale(1.1);
+}
+
+/* Weather Actions in Card */
+.weatherActions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.weatherActions .MuiIconButton-root {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+}
+
+.weatherActions .MuiIconButton-root:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Forecast Section */
+.forecastSection {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.forecastTitle {
+  color: #1976d2;
+  font-weight: 600 !important;
+  margin-bottom: 15px !important;
+}
+
+.forecastGrid {
+  width: 100%;
+  margin: 0 !important;
+}
+
+.forecastCard {
+  padding: 15px !important;
+  text-align: center;
+  background: white !important;
+  border-radius: 12px !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.forecastCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.forecastIcon {
+  margin: 8px 0;
+}
+
+.forecastTemp {
+  font-weight: 700 !important;
+  color: #1976d2;
+  font-size: 1.2rem !important;
+}
+
+.forecastDesc {
+  text-transform: capitalize;
+  font-size: 0.7rem !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .headerContent {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .headerRight {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .weatherActions {
+    margin-top: 10px;
+  }
+
+  .forecastCard {
+    padding: 10px !important;
+  }
+
+  .forecastTemp {
+    font-size: 1rem !important;
+  }
+
+  .forecastSection {
+    padding: 15px;
+    margin: 15px 10px 0 10px;
+    width: calc(100% - 20px);
+  }
+
+  .favoritesSection {
+    padding: 12px;
+    margin: 0 10px 20px 10px;
+    width: calc(100% - 20px);
+  }
+
+  .actionButtons {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .forecastGrid .MuiGrid-item {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+
+  .forecastCard {
+    padding: 8px !important;
+  }
+
+  .forecastIcon svg {
+    font-size: 24px !important;
+  }
+
+  .unitToggle .MuiToggleButton-root {
+    padding: 4px 8px !important;
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Show More Button */
+.showMoreContainer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.showMoreButton {
+  text-transform: none !important;
+  color: #1976d2 !important;
+}
+
+.extendedDetails {
+  margin-top: 20px;
+}
+
+.extendedDivider {
+  margin: 15px 0 !important;
+}
+
+/* Air Quality */
+.airQualitySection {
+  margin-bottom: 15px;
+}
+
+.aqiDisplay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.aqiBar {
+  height: 8px;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  max-width: 100%;
+}
+
+.aqiComponents {
+  margin-top: 8px;
+}
+
+.aqiComponents .MuiGrid-item {
+  text-align: center;
+}
+
+/* Stats Section */
+.statsSection {
+  margin-top: 10px;
+}
+
+.statsSection .MuiGrid-item {
+  padding: 4px 0;
+}
+
+/* Hourly Forecast */
+.hourlyToggle {
+  margin: 10px 0 !important;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 16px;
+  border-radius: 8px;
+  width: auto !important;
+}
+
+.hourlySection {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.hourlyGrid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 5px;
+}
+
+.hourlyCard {
+  min-width: 80px;
+  padding: 10px !important;
+  text-align: center;
+  background: white !important;
+  border-radius: 12px !important;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.hourlyCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.hourlyIcon {
+  margin: 5px 0;
+}
+
+.hourlyTemp {
+  font-weight: 600 !important;
+  color: #1976d2;
+}
+
+.hourlyDesc {
+  font-size: 0.6rem !important;
+  text-transform: capitalize;
+}
+
+/* Share Dialog */
+.MuiDialog-paper {
+  border-radius: 16px !important;
+  min-width: 320px;
+}
+
+.MuiDialogTitle-root {
+  padding-bottom: 8px !important;
+}
+
+.MuiDialogContent-root {
+  padding: 8px 24px 16px !important;
+}
+
+.MuiDialogActions-root {
+  padding: 8px 24px 16px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hourlyGrid {
+    gap: 8px;
+  }
+  
+  .hourlyCard {
+    min-width: 70px;
+    padding: 8px !important;
+  }
+  
+  .hourlySection {
+    padding: 15px;
+    margin: 15px 10px 0 10px;
+    width: calc(100% - 20px);
+  }
+  
+  .hourlyToggle {
+    margin: 10px 10px !important;
+    width: calc(100% - 20px) !important;
+    justify-content: center;
+  }
+  
+  .aqiComponents .MuiGrid-item {
+    padding: 2px !important;
+  }
+  
+  .showMoreContainer {
+    margin-top: 15px;
+  }
+  
+  .extendedDetails {
+    margin-top: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hourlyCard {
+    min-width: 60px;
+    padding: 6px !important;
+  }
+  
+  .hourlyTemp {
+    font-size: 0.8rem !important;
+  }
+  
+  .aqiComponents .MuiGrid-item {
+    flex: 0 0 50%;
+    max-width: 50%;
+    padding: 4px !important;
+  }
+}
